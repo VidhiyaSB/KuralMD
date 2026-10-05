@@ -1,0 +1,25 @@
+{% macro status_badge(status, urgent=False) -%}
+  {%- set meta = STATUS_META.get(status, (status, 'bg-slate-100 text-slate-700')) -%}
+  <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold {{ meta[1] }}">
+    {%- if status == 'approved' %}<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>{% endif -%}
+    {{ meta[0] }}</span>
+  {%- if urgent %} <span class="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">URGENT</span>{% endif -%}
+{%- endmacro %}
+
+{% macro avatar(p, size='w-11 h-11 text-sm') -%}
+  {%- set palette = ['bg-sky-100 text-sky-700','bg-teal-100 text-teal-700','bg-indigo-100 text-indigo-700','bg-emerald-100 text-emerald-700','bg-cyan-100 text-cyan-700'] -%}
+  <span class="{{ size }} rounded-full grid place-items-center font-bold shrink-0 {{ palette[p.id % 5] }}">{{ p.initials }}</span>
+{%- endmacro %}
+
+{% macro lang_chip(lang) -%}
+  <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 {{ 'font-tamil' if lang == 'ta' }}">{{ 'தமிழ்' if lang == 'ta' else 'English' }}</span>
+{%- endmacro %}
+
+{% macro field_status(st, source='') -%}
+  {%- if source and source.startswith('previous_visit') -%}<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold border {{ 'bg-indigo-50 text-indigo-700 border-indigo-200' if st == 'filled' else 'bg-amber-50 text-amber-700 border-amber-200' }}">from previous visit{{ '' if st == 'filled' else ' · verify' }}</span>
+  {%- elif source and source.startswith('upload') -%}<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">from prescription</span>
+  {%- elif source == 'doctor' -%}<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">edited by doctor</span>
+  {%- elif st == 'filled' -%}<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">from patient</span>
+  {%- elif st == 'unclear' -%}<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">unclear · verify</span>
+  {%- else -%}<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-50 text-slate-500 border border-slate-200">missing</span>{%- endif -%}
+{%- endmacro %}

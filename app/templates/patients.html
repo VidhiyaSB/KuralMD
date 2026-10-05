@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, avatar, lang_chip %}
+{% block title %}Patients{% endblock %}
+{% block content %}
+<div x-data="{ walkin:false }">
+<div class="flex items-end justify-between gap-3 mb-4">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Patients</h1>
+    <p class="text-sm text-slate-500">Community Medicine OPD · {{ patients|length }} shown</p>
+  </div>
+  <div class="flex gap-2">
+    <a href="/patients/new" class="inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold" aria-label="Register patient">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg><span class="hidden sm:inline">Register</span>
+    </a>
+    <button type="button" @click="walkin=true" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>Quick walk-in
+    </button>
+  </div>
+</div>
+{% include "_walkin.html" %}
+
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+  <div class="p-3 sm:p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center">
+    <div class="inline-flex p-1 rounded-xl bg-slate-100 text-sm font-medium">
+      {% for key, label in [('clinic','Clinic'),('today','Today'),('history','History')] %}
+      <a href="/patients?tab={{ key }}{% if q %}&q={{ q }}{% endif %}" class="px-4 py-1.5 rounded-lg {{ 'bg-white shadow-sm text-brand-700' if tab == key else 'text-slate-600 hover:text-slate-900' }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+    <form method="get" class="sm:ml-auto">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <input name="q" value="{{ q }}" placeholder="Search name or PID…" class="w-full sm:w-64 px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-100 focus:border-brand-300 outline-none">
+    </form>
+  </div>
+
+  <ul class="divide-y divide-slate-100">
+    {% for p in patients %}
+    {% set e = latest.get(p.id) %}
+    <li class="p-3 sm:p-4 flex items-center gap-3 hover:bg-slate-50/70">
+      {{ avatar(p) }}
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2 flex-wrap">
+          <a href="/patients/{{ p.id }}" class="font-semibold text-slate-900 hover:text-brand-700 truncate">{{ p.name }}</a>
+          <span class="text-xs text-slate-400 font-mono">{{ p.pid }}</span>
+        </div>
+        <div class="text-xs text-slate-500 mt-0.5">{{ p.age }} y · {{ p.sex }} · {{ p.blood_group or '—' }} · {{ p.payer }}</div>
+        <div class="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+          <span>Student: <span class="text-slate-700">{{ p.assigned_student or '—' }}</span></span>
+          {{ lang_chip(p.preferred_language) }}
+          {% if e %}<span class="sm:hidden">{{ status_badge(e.status, e.urgent) }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="hidden sm:block text-right">
+        {% if e %}{{ status_badge(e.status, e.urgent) }}<div class="text-[11px] text-slate-400 mt-1">{{ e.created_at|dt }}</div>
+        {% else %}<span class="text-xs text-slate-400">No visits</span>{% endif %}
+      </div>
+      <a href="/patients/{{ p.id }}" class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-brand-700 hover:bg-brand-50">View</a>
+    </li>
+    {% else %}
+    <li class="p-10 text-center text-slate-500 text-sm">No patients found.</li>
+    {% endfor %}
+  </ul>
+</div>
+<p class="text-[11px] text-slate-400 mt-3 text-center">All patients are fictional. Synthetic data only.</p>
+</div>
+{% endblock %}

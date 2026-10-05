@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, avatar %}
+{% block title %}AI pipeline{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-slate-900 tracking-tight">AI pipeline</h1>
+<p class="text-sm text-slate-500 mb-4">Every AI step per encounter: speech-to-text, translation, agent decisions, extraction, guardrails, speech.</p>
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+  {% for e, p, n in rows %}
+  <a href="/encounters/{{ e.id }}/pipeline" class="p-4 flex items-center gap-3 hover:bg-slate-50">
+    {{ avatar(p) }}
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-slate-900">{{ p.name }}</span>{{ status_badge(e.status, e.urgent) }}</div>
+      <div class="text-xs text-slate-500 mt-0.5">OP #{{ e.id }} · {{ e.updated_at|dt }}</div>
+    </div>
+    <span class="text-sm font-semibold text-brand-700">{{ n }} steps →</span>
+  </a>
+  {% else %}
+  <div class="p-10 text-center text-sm text-slate-500">No AI activity yet. Run a voice interview to see the pipeline.</div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+{
+  "_note": "Synthetic transcripts only. 'expect' lists lowercase keywords that must ALL appear in the extracted value; null means the field must be missing.",
+  "cases": [
+    {
+      "id": "fever_cough_ta",
+      "age": 34, "sex": "F",
+      "transcript": [
+        ["agent", "இன்னைக்கு என்ன பிரச்சனைக்காக வந்திருக்கீங்க?", "What problem brings you here today?"],
+        ["patient", "மூணு நாளா காய்ச்சல், கூட இருமலும் இருக்கு", "I have had fever for three days, and cough also"],
+        ["agent", "சாயங்காலம் காய்ச்சல் அதிகமாகுதா?", "Does the fever go up in the evening?"],
+        ["patient", "ஆமா, சாயங்காலம் நடுக்கத்தோட அதிகமாகுது", "Yes, it increases in the evening with shivering"],
+        ["agent", "இருமல்ல சளி வருதா?", "Is there phlegm with the cough?"],
+        ["patient", "மஞ்சள் கலர் சளி வருது", "Yellow coloured phlegm comes"],
+        ["agent", "சுகர், BP ஏதாவது இருக்கா?", "Do you have sugar or BP?"],
+        ["patient", "இல்ல, எதுவும் இல்ல", "No, nothing like that"],
+        ["agent", "இப்போ ஏதாவது மாத்திரை சாப்பிடறீங்களா?", "Are you taking any tablets now?"],
+        ["patient", "காய்ச்சலுக்கு பாராசிட்டமால் சாப்பிட்டேன்", "I took paracetamol for the fever"],
+        ["agent", "ஏதாவது மருந்து அலர்ஜி இருக்கா?", "Any drug allergy?"],
+        ["patient", "அலர்ஜி எதுவும் இல்ல", "No allergies"],
+        ["agent", "வீட்டுல யாருக்காவது இப்படி இருக்கா?", "Does anyone at home have this?"],
+        ["patient", "என் பையனுக்கும் போன வாரம் காய்ச்சல் இருந்துச்சு", "My son also had fever last week"],
+        ["agent", "நீங்க என்ன வேலை பாக்கறீங்க?", "What work do you do?"],
+        ["patient", "நான் டெய்லரிங் வேலை பாக்கறேன்", "I do tailoring work"]
+      ],
+      "expect": {
+        "chief_complaint": ["fever", "cough"],
+        "history_of_presenting_illness": ["evening"],
+        "past_history": ["no"],
+        "drug_history": ["paracetamol"],
+        "allergies": ["no"],
+        "family_history": ["son"],
+        "occupational_history": ["tailor"],
+        "pain_score": null
+      }
+    },
+    {
+      "id": "knee_pain_en",
+      "age": 62, "sex": "M",
+      "transcript": [
+        ["agent", "What problem brings you here today?", "What problem brings you here today?"],
+        ["patient", "Pain in my right knee for 2 months", "Pain in my right knee for 2 months"],
+        ["agent", "How bad is the pain from 0 to 10?", "How bad is the pain from 0 to 10?"],
+        ["patient", "It is about 7", "It is about 7"],
+        ["agent", "What makes it worse?", "What makes it worse?"],
+        ["patient", "Climbing stairs makes it worse, rest helps", "Climbing stairs makes it worse, rest helps"],
+        ["agent", "Any other illness?", "Any other illness?"],
+        ["patient", "I have BP for 10 years, taking amlodipine 5 mg daily", "I have BP for 10 years, taking amlodipine 5 mg daily"],
+        ["agent", "Any allergies?", "Any allergies?"],
+        ["patient", "I am allergic to sulfa drugs", "I am allergic to sulfa drugs"],
+        ["agent", "Do you smoke or drink?", "Do you smoke or drink?"],
+        ["patient", "I drink alcohol on weekends, no smoking", "I drink alcohol on weekends, no smoking"],
+        ["agent", "What work do you do?", "What work do you do?"],
+        ["patient", "I was a farmer, now retired", "I was a farmer, now retired"]
+      ],
+      "expect": {
+        "chief_complaint": ["knee", "2 months"],
+        "history_of_presenting_illness": ["stairs"],
+        "past_history": ["10 years"],
+        "drug_history": ["amlodipine"],
+        "allergies": ["sulfa"],
+        "family_history": null,
+        "personal_history": ["alcohol"],
+        "occupational_history": ["farmer"],
+        "pain_score": ["7"]
+      }
+    }
+  ]
+}

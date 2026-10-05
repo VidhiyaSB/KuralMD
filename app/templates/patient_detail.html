@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, avatar, lang_chip %}
+{% block title %}{{ patient.name }}{% endblock %}
+{% block content %}
+<a href="/patients" class="text-sm text-slate-500 hover:text-slate-800">← Patients</a>
+
+<!-- Header card -->
+<section class="mt-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+  <div class="h-16 bg-gradient-to-r from-brand-500 to-sky-600"></div>
+  <div class="px-5 pb-5 -mt-8 flex flex-col sm:flex-row sm:items-end gap-4">
+    <div class="ring-4 ring-white rounded-full w-fit">{{ avatar(patient, 'w-16 h-16 text-xl') }}</div>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-xl font-bold text-slate-900">{{ patient.name }}</h1>
+      <div class="text-sm text-slate-500">{{ patient.age }} y · {{ 'Female' if patient.sex == 'F' else 'Male' if patient.sex == 'M' else 'Other' }} · <span class="font-mono">{{ patient.pid }}</span></div>
+      <div class="mt-2 flex flex-wrap gap-1.5">
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-rose-50 text-rose-700">{{ patient.blood_group or 'Blood group —' }}</span>
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-sky-50 text-sky-700">{{ patient.patient_group }}</span>
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600">{{ patient.payer }}</span>
+        {{ lang_chip(patient.preferred_language) }}
+        <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600">Student: {{ patient.assigned_student or '—' }}</span>
+      </div>
+    </div>
+    <form method="post" action="/patients/{{ patient.id }}/encounters">
+      <button class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-sm">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>
+        Start voice interview
+      </button>
+    </form>
+  </div>
+</section>
+
+<div class="grid lg:grid-cols-3 gap-4 mt-4">
+  <!-- Alerts -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 lg:order-2 h-fit">
+    <h2 class="font-semibold text-slate-900 flex items-center gap-2">
+      <svg class="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></svg>Alerts</h2>
+    <ul class="mt-3 space-y-2">
+      {% for a in alerts %}
+      <li class="px-3 py-2 rounded-xl text-sm {{ 'bg-rose-50 text-rose-800 border border-rose-200' if a.kind == 'red' else 'bg-amber-50 text-amber-800 border border-amber-200' }}">{{ a.text }}</li>
+      {% else %}
+      <li class="text-sm text-slate-500">No known allergies or red flags.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <!-- Case records -->
+  <section class="bg-white rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 lg:order-1">
+    <div class="p-5 pb-3 flex items-center justify-between">
+      <h2 class="font-semibold text-slate-900">Case records</h2>
+      <span class="text-xs text-slate-500">{{ encounters|length }} encounter{{ '' if encounters|length == 1 else 's' }}</span>
+    </div>
+    <ul class="divide-y divide-slate-100">
+      {% for e in encounters %}
+      {% set h = e.get_extracted() %}
+      <li class="px-5 py-4">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-700 grid place-items-center shrink-0">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-medium text-slate-900">OP #{{ e.id }} · {{ e.department }}</span>
+              {{ status_badge(e.status, e.urgent) }}
+            </div>
+            <div class="text-xs text-slate-500 mt-0.5">{{ e.created_at|dt }}{% if e.approved_by %} · Approved by {{ e.approved_by }}{% endif %}</div>
+            {% if h and h.chief_complaint and h.chief_complaint.value %}
+            <div class="text-sm text-slate-700 mt-1.5"><span class="text-slate-400">CC:</span> {{ h.chief_complaint.value }}</div>
+            {% endif %}
+            <div class="mt-2.5 flex flex-wrap gap-2 text-sm">
+              {% if e.status == 'interview_in_progress' %}
+              <a href="/interview/{{ e.id }}" class="px-3 py-1.5 rounded-lg bg-brand-600 text-white font-medium">Continue interview</a>
+              {% endif %}
+              <a href="/encounters/{{ e.id }}/record" class="px-3 py-1.5 rounded-lg border border-slate-200 font-medium text-slate-700 hover:bg-slate-50">OP record</a>
+              <a href="/encounters/{{ e.id }}/pipeline" class="px-3 py-1.5 rounded-lg border border-slate-200 font-medium text-slate-700 hover:bg-slate-50">AI pipeline</a>
+            </div>
+          </div>
+        </div>
+      </li>
+      {% else %}
+      <li class="px-5 py-10 text-center text-sm text-slate-500">No case records yet. Start a voice interview.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

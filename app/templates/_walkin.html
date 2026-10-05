@@ -1,0 +1,44 @@
+{# Quick walk-in: register + start voice interview in one step. Include inside an x-data="{ walkin:false }" scope. #}
+<div x-show="walkin" x-transition.opacity class="fixed inset-0 z-40 bg-slate-900/50 grid place-items-end sm:place-items-center sm:p-4" style="display:none">
+  <form method="post" action="/walkin" @click.outside="walkin=false" x-data="{ lang:'ta', sex:'F' }"
+    class="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl space-y-4">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h3 class="font-bold text-lg text-slate-900">Quick walk-in</h3>
+        <p class="text-sm text-slate-500">Register and start the voice interview right away.</p>
+      </div>
+      <button type="button" @click="walkin=false" class="p-1 text-slate-400 hover:text-slate-700" aria-label="Close">✕</button>
+    </div>
+
+    <label class="block text-sm font-medium">Name <span class="text-slate-400 font-normal">(fictional)</span>
+      <input name="name" required autocomplete="off" class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 text-base focus:ring-2 focus:ring-brand-100 focus:border-brand-300 outline-none">
+    </label>
+
+    <div class="grid grid-cols-[6rem_1fr] gap-3">
+      <label class="block text-sm font-medium">Age
+        <input name="age" type="number" inputmode="numeric" min="0" max="120" required class="mt-1 w-full px-4 py-3 rounded-xl border border-slate-200 text-base focus:ring-2 focus:ring-brand-100 outline-none">
+      </label>
+      <div class="text-sm font-medium">Sex
+        <input type="hidden" name="sex" :value="sex">
+        <div class="mt-1 grid grid-cols-3 gap-1.5">
+          {% for v, label in [('F','Female'),('M','Male'),('O','Other')] %}
+          <button type="button" @click="sex='{{ v }}'" :class="sex==='{{ v }}' ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'" class="py-3 rounded-xl border text-sm font-semibold">{{ label }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="text-sm font-medium">Interview language
+      <input type="hidden" name="preferred_language" :value="lang">
+      <div class="mt-1 grid grid-cols-2 gap-2">
+        <button type="button" @click="lang='ta'" :class="lang==='ta' ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'" class="py-3 rounded-xl border font-semibold font-tamil">தமிழ்</button>
+        <button type="button" @click="lang='en'" :class="lang==='en' ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'" class="py-3 rounded-xl border font-semibold">English</button>
+      </div>
+    </div>
+
+    <button class="w-full inline-flex items-center justify-center gap-2 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-sm">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>
+      Start voice interview
+    </button>
+  </form>
+</div>

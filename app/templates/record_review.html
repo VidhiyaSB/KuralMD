@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, avatar, field_status %}
+{% block title %}OP record · {{ patient.name }}{% endblock %}
+{% block content %}
+{% set approved = encounter.status == 'approved' %}
+{% set extracting = encounter.status == 'interview_complete' %}
+<div x-data="{ followup:false, approve:false, paste:false }">
+
+<a href="/patients/{{ patient.id }}" class="text-sm text-slate-500 hover:text-slate-800">← {{ patient.name }}</a>
+
+<!-- Header -->
+<section class="mt-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row gap-4 sm:items-center">
+  <div class="flex items-center gap-3 flex-1 min-w-0">
+    {{ avatar(patient) }}
+    <div class="min-w-0">
+      <h1 class="font-bold text-slate-900 text-lg">Outpatient record <span class="text-slate-400 font-normal">· OP #{{ encounter.id }}</span></h1>
+      <div class="text-sm text-slate-500 truncate">{{ patient.name }} · {{ patient.age }}{{ patient.sex }} · {{ patient.pid }} · {{ encounter.department }} · {{ encounter.created_at|dt }}</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    {{ status_badge(encounter.status, encounter.urgent) }}
+    <a href="/encounters/{{ encounter.id }}/pipeline" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50">AI pipeline</a>
+    {% if langfuse_url %}<a href="{{ langfuse_url }}" target="_blank" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50">Langfuse ↗</a>{% endif %}
+  </div>
+</section>
+
+{% if approved %}
+<div class="mt-3 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3">
+  <span class="w-9 h-9 rounded-full bg-emerald-600 text-white grid place-items-center"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>
+  <div><div class="font-bold">Approved</div><div class="text-sm">by {{ encounter.approved_by }} · {{ encounter.approved_at|dt }}</div></div>
+</div>
+{% endif %}
+
+{% if extracting %}
+<div class="mt-3 p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-800 flex items-center gap-3" x-data x-init="setInterval(async()=>{const r=await fetch('/api/encounters/{{ encounter.id }}/status');const j=await r.json();if(j.status!=='interview_complete')location.reload()},2500)">
+  <span class="flex gap-1"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+  <div><div class="font-semibold">Extracting history with Gemma…</div><div class="text-sm">LangExtract finds each answer in the transcript, then the grounding guardrail verifies every quote. This page refreshes automatically.</div></div>
+</div>
+{% endif %}
+
+{% if encounter.urgent %}
+<div class="mt-3 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800">
+  <div class="font-bold">⚠ Red flag during interview — urgent</div>
+  <div class="text-sm mt-0.5">{{ encounter.red_flag_reason }}</div>
+</div>
+{% endif %}
+
+{% if flags %}
+<div class="mt-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+  <div class="font-semibold text-amber-900 text-sm mb-1">Flags for the doctor ({{ flags|length }})</div>
+  <ul class="text-sm text-amber-900 list-disc pl-5 space-y-0.5">{% for f in flags %}<li>{{ f }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="grid xl:grid-cols-3 gap-4 mt-4">
+  <form method="post" action="/encounters/{{ encounter.id }}/record" id="recordForm" class="xl:col-span-2 space-y-4">
+
+    <!-- History (AI) -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2">
+        <div>
+          <h2 class="font-semibold text-slate-900">History</h2>
+          <p class="text-xs text-slate-500">Filled by KuralMD from the patient's own words. Click a chip to see the source quote.</p>
+        </div>
+        <span class="text-[11px] px-2 py-1 rounded-lg bg-brand-50 text-brand-700 font-medium whitespace-nowrap">AI-assisted</span>
+      </div>
+      <div class="p-5 grid md:grid-cols-2 gap-4">
+        {% set pg = hist.get('patient_group') or {} %}
+        <div>
+          <label class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Patient group</label>
+          <select name="h_patient_group" {{ 'disabled' if approved }} class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm">
+            {% for g in ['Adult','Paediatric','Geriatric'] %}<option {{ 'selected' if (pg.value or patient.patient_group) == g }}>{{ g }}</option>{% endfor %}
+          </select>
+          <div class="text-[11px] text-slate-400 mt-1">From age {{ patient.age }}</div>
+        </div>
+        {% for key, meta in HISTORY_FIELDS.items() %}
+        {% set f = hist.get(key) or {} %}
+        {% set st = f.status or 'missing' %}
+        {% set wide = key in ['chief_complaint','history_of_presenting_illness','personal_history'] %}
+        <div class="{{ 'md:col-span-2' if wide }}" x-data="{ open:false }">
+          <div class="flex items-center justify-between gap-2">
+            <label for="h_{{ key }}" class="text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ meta.label }} <span class="font-tamil normal-case font-normal text-slate-400">· {{ meta.ta }}</span></label>
+            <button type="button" @click="open=!open" class="shrink-0">{{ field_status(st, f.source or '') }}</button>
+          </div>
+          <textarea id="h_{{ key }}" name="h_{{ key }}" rows="{{ 3 if wide else 2 }}" {{ 'readonly' if approved }}
+            class="mt-1 w-full px-3 py-2.5 rounded-xl border text-sm leading-relaxed outline-none focus:ring-2 focus:ring-brand-100
+            {{ 'border-amber-300 bg-amber-50/60' if st == 'unclear' else 'border-teal-200 bg-teal-50/30' if st == 'filled' else 'border-slate-200' }}"
+            placeholder="{{ 'Not discussed — ' ~ meta.hint if st == 'missing' else '' }}">{{ f.value or '' }}</textarea>
+          <div x-show="open" x-transition class="mt-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm space-y-2" style="display:none">
+            {% if f.source_quote_original and f.source_quote_original != f.source_quote_en %}
+            <div><div class="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Patient said (original)</div><div class="font-tamil text-slate-800">“{{ f.source_quote_original }}”</div></div>
+            {% endif %}
+            {% if f.source_quote_en %}
+            <div><div class="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">English</div><div class="text-slate-700 italic">“{{ f.source_quote_en }}”</div></div>
+            {% endif %}
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+              <span>Source: {{ f.source or '—' }}</span>
+              {% if f.confidence %}<span>Confidence {{ (f.confidence * 100)|round|int }}%</span>{% endif %}
+              {% if f.grounding_score is not none %}<span>Grounding {{ f.grounding_score|round|int }}/100</span>{% endif %}
+              {% if f.turn_id and turns.get(f.turn_id) %}<span>Turn #{{ f.turn_id }}</span>{% endif %}
+            </div>
+            {% if f.note %}<div class="text-[12px] text-amber-800">{{ f.note }}</div>{% endif %}
+            {% if not f.source_quote_en and not f.note %}<div class="text-slate-500 text-xs">No source — not discussed in the interview.</div>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Doctor-only sections -->
+    {% set doc = doctor %}
+    {% for section, fields in DOCTOR_ONLY_FIELDS.items() %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <div class="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <h2 class="font-semibold text-slate-900">{{ section }}</h2>
+        <span class="text-[11px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">Doctor only · AI never fills</span>
+      </div>
+      <div class="p-5 grid sm:grid-cols-2 gap-4">
+        {% for k, label in fields %}
+        <label class="block {{ 'sm:col-span-2' if k in ['plan','piccle','provisional_diagnosis'] }}">
+          <span class="text-xs font-semibold text-slate-600 uppercase tracking-wide">{{ label }}</span>
+          {% if k == 'next_review_date' %}
+          <input type="date" name="d_{{ k }}" value="{{ doc.get(k, '') }}" {{ 'readonly' if approved }} class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm">
+          {% else %}
+          <input name="d_{{ k }}" value="{{ doc.get(k, '') }}" {{ 'readonly' if approved }} class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-brand-100 outline-none">
+          {% endif %}
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+      <label class="block"><span class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Doctor notes</span>
+        <textarea name="doctor_notes" rows="3" {{ 'readonly' if approved }} class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm">{{ encounter.doctor_notes }}</textarea></label>
+    </section>
+  </form>
+
+  <!-- Side column -->
+  <aside class="space-y-4">
+    {% if not approved %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-2 xl:sticky xl:top-20">
+      <button form="recordForm" name="action" value="save" class="w-full py-2.5 rounded-xl border border-slate-300 font-semibold text-slate-700 hover:bg-slate-50">Save draft</button>
+      <button type="button" @click="followup=true" class="w-full py-2.5 rounded-xl border border-amber-300 bg-amber-50 font-semibold text-amber-800 hover:bg-amber-100">Ask follow-up</button>
+      <button type="button" @click="approve=true" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">Approve</button>
+      <p class="text-[11px] text-slate-400 leading-snug pt-1">AI only drafts the history. The doctor reviews, edits and approves the record.</p>
+    </section>
+    {% endif %}
+
+    <!-- Approve dialog -->
+    <div x-show="approve" class="fixed inset-0 z-40 bg-slate-900/50 grid place-items-center p-4" style="display:none">
+      <div @click.outside="approve=false" class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl">
+        <h3 class="font-bold text-lg">Approve record</h3>
+        <p class="text-sm text-slate-500 mt-1">Confirm you reviewed the history against the patient's own words.</p>
+        <label class="block mt-3 text-sm font-medium">Approved by<input form="recordForm" name="approved_by" value="Dr. S. Ilango (Faculty)" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-200"></label>
+        <div class="mt-4 flex gap-2 justify-end">
+          <button type="button" @click="approve=false" class="px-4 py-2 rounded-xl border border-slate-200">Cancel</button>
+          <button form="recordForm" name="action" value="approve" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold">Approve</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transcript -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm">
+      <details {{ 'open' if turns|length < 40 }}>
+        <summary class="px-4 py-3 cursor-pointer flex items-center justify-between">
+          <span class="font-semibold text-slate-900">Interview transcript</span><span class="text-xs text-slate-500">{{ turns|length }} turns</span>
+        </summary>
+        <div class="px-4 pb-4 space-y-2 max-h-[60vh] overflow-y-auto">
+          {% for t in turns.values() %}
+          <div id="turn-{{ t.id }}" class="text-sm {{ 'pl-6' if t.role == 'patient' }}">
+            <div class="px-3 py-2 rounded-xl {{ 'bg-brand-50 border border-brand-100' if t.role == 'patient' else 'bg-slate-50' }}">
+              <div class="text-[10px] uppercase tracking-wide font-semibold {{ 'text-brand-700' if t.role == 'patient' else 'text-slate-400' }}">{{ 'Patient' if t.role == 'patient' else 'KuralMD' }} · #{{ t.id }}</div>
+              <div class="font-tamil text-slate-800">{{ t.text_original }}</div>
+              {% if t.text_english and t.text_english != t.text_original %}<div class="text-xs text-slate-500 italic mt-0.5">{{ t.text_english }}</div>{% endif %}
+              {% if t.role == 'patient' and t.audio_path %}<audio controls preload="none" src="{{ t.audio_path }}" class="mt-1 h-8 w-full"></audio>{% endif %}
+            </div>
+          </div>
+          {% else %}
+          <p class="text-sm text-slate-500">No interview yet.</p>
+          {% endfor %}
+        </div>
+      </details>
+    </section>
+
+    <!-- Prescription upload -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+      <h3 class="font-semibold text-slate-900">Old prescriptions</h3>
+      <p class="text-xs text-slate-500 mt-0.5">Photo of a prescription or medicine strip → Gemma vision reads medicines into Drug history.</p>
+      {% for a in attachments %}
+      {% set data = a.extracted_json|fromjson %}
+      <div class="mt-3 flex gap-3">
+        <a href="{{ a.path }}" target="_blank"><img src="{{ a.path }}" class="w-16 h-16 object-cover rounded-lg border border-slate-200"></a>
+        <div class="text-xs text-slate-600 min-w-0">
+          <div class="font-medium text-slate-800 truncate">{{ a.filename }}</div>
+          {% if data and data.medicines %}{% for m in data.medicines %}<div>• {{ m.name }} {{ m.dose or '' }} {{ m.frequency or '' }}</div>{% endfor %}
+          {% else %}<div class="text-amber-700">Could not read medicines.</div>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% if not approved %}
+      <form method="post" action="/encounters/{{ encounter.id }}/upload" enctype="multipart/form-data" class="mt-3 flex gap-2 items-center">
+        <input type="file" name="file" accept="image/*" capture="environment" required class="text-xs flex-1 min-w-0 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-brand-50 file:text-brand-700">
+        <button class="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-sm font-medium">Read</button>
+      </form>
+      {% endif %}
+    </section>
+
+    {% if not approved %}
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-2">
+      <h3 class="font-semibold text-slate-900">Other inputs</h3>
+      <button type="button" @click="paste=!paste" class="text-sm text-brand-700 font-medium">Paste a transcript instead</button>
+      <form x-show="paste" method="post" action="/encounters/{{ encounter.id }}/transcript" class="space-y-2" style="display:none">
+        <textarea name="transcript" rows="8" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-mono" placeholder="Doctor: What brings you here?&#10;Patient: Fever for 3 days…"></textarea>
+        <select name="language" class="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"><option value="en">English</option><option value="ta">Tamil</option></select>
+        <button class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold">Extract from transcript</button>
+      </form>
+      {% if turns %}
+      <form method="post" action="/encounters/{{ encounter.id }}/reextract"><button class="text-sm text-slate-600 hover:text-slate-900">↻ Re-run extraction</button></form>
+      {% endif %}
+    </section>
+    {% endif %}
+  </aside>
+</div>
+
+<!-- Follow-up dialog -->
+<div x-show="followup" class="fixed inset-0 z-40 bg-slate-900/50 grid place-items-center p-4" style="display:none">
+  <form method="post" action="/encounters/{{ encounter.id }}/followup" @click.outside="followup=false" class="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
+    <h3 class="font-bold text-lg">Ask the patient a follow-up</h3>
+    <p class="text-sm text-slate-500 mt-1">KuralMD resumes the voice interview and asks only about these fields.</p>
+    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-64 overflow-y-auto">
+      {% for key, meta in HISTORY_FIELDS.items() %}
+      {% set st = (hist.get(key) or {}).status or 'missing' %}
+      <label class="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm {{ 'border-amber-200 bg-amber-50' if st != 'filled' else 'border-slate-200' }}">
+        <input type="checkbox" name="fields" value="{{ key }}" {{ 'checked' if st == 'unclear' }} class="accent-brand-600"> {{ meta.label }}
+      </label>
+      {% endfor %}
+    </div>
+    <label class="block mt-3 text-sm font-medium">Note for the assistant (optional)<input name="note" placeholder="e.g. ask exact duration of fever" class="mt-1 w-full px-3 py-2.5 rounded-xl border border-slate-200"></label>
+    <div class="mt-4 flex gap-2 justify-end">
+      <button type="button" @click="followup=false" class="px-4 py-2 rounded-xl border border-slate-200">Cancel</button>
+      <button class="px-4 py-2 rounded-xl bg-amber-500 text-white font-semibold">Resume interview</button>
+    </div>
+  </form>
+</div>
+</div>
+{% endblock %}

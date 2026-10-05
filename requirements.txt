@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+jinja2
+python-multipart
+httpx
+pydantic-settings
+langextract
+rapidfuzz
+openai
+langfuse
+pillow
+gTTS
+# optional, for fully offline STT (STT_PROVIDER=local):
+# faster-whisper

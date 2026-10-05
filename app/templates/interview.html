@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Interview · {{ patient.name }}{% endblock %}
+{% block content %}
+<div x-data="interview({{ encounter.id }}, '{{ encounter.language }}', '{{ settings.stt_provider }}')" x-init="init()" class="max-w-3xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-3">
+    <a href="/patients/{{ patient.id }}" class="p-2 -ml-2 rounded-lg hover:bg-white text-slate-500" aria-label="Back">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+    </a>
+    <div class="min-w-0 flex-1">
+      <h1 class="font-bold text-slate-900 truncate">{{ patient.name }} <span class="font-normal text-slate-400 text-sm">· {{ patient.age }}{{ patient.sex }} · {{ patient.pid }}</span></h1>
+      <div class="text-xs text-slate-500">Voice history · OP #{{ encounter.id }}
+        <template x-if="prior"><span class="ml-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium" :title="'Reusing from ' + prior.date + ': ' + prior.fields.join(', ')">↺ Returning · last visit <span x-text="prior.date"></span></span></template>
+      </div>
+    </div>
+    <!-- Language toggle -->
+    <div class="inline-flex p-1 rounded-xl bg-white border border-slate-200 text-sm font-semibold shadow-sm">
+      <button @click="setLanguage('ta')" :disabled="busy || done" :class="language==='ta' ? 'bg-brand-600 text-white' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg font-tamil">தமிழ்</button>
+      <button @click="setLanguage('en')" :disabled="busy || done" :class="language==='en' ? 'bg-brand-600 text-white' : 'text-slate-600'" class="px-3 py-1.5 rounded-lg">English</button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-3">
+    <div class="flex items-center justify-between text-xs font-medium text-slate-500 mb-2">
+      <span>History covered</span><span x-text="progress.percent + '%'"></span>
+    </div>
+    <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+      <div class="h-full rounded-full bg-gradient-to-r from-brand-500 to-sky-500 transition-all duration-700" :style="`width:${progress.percent}%`"></div>
+    </div>
+    <div class="mt-3 flex flex-wrap gap-1.5">
+      <template x-for="f in progress.fields" :key="f.key">
+        <span class="px-2 py-0.5 rounded-full text-[11px] border transition-colors"
+          :class="f.covered ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-slate-50 border-slate-200 text-slate-400'">
+          <span x-show="f.covered">✓ </span><span x-text="f.label"></span>
+        </span>
+      </template>
+    </div>
+  </div>
+
+  <!-- Red flag banner -->
+  <template x-if="urgent">
+    <div class="mb-3 p-4 rounded-2xl bg-rose-600 text-white shadow-lg flex gap-3 items-start animate-pulse-slow">
+      <svg class="w-7 h-7 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></svg>
+      <div>
+        <div class="font-bold text-lg font-tamil">தயவுசெய்து உடனே டாக்டர் / நர்ஸ்கிட்ட சொல்லுங்க</div>
+        <div class="font-semibold">Please inform the doctor / nurse immediately.</div>
+        <div class="text-sm text-rose-100 mt-1">Red flag: <span x-text="redFlagReason"></span>. Interview stopped and marked urgent.</div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Current question -->
+  <section class="bg-gradient-to-br from-brand-600 to-sky-700 text-white rounded-3xl shadow-lg p-5 sm:p-6 mb-3 relative overflow-hidden">
+    <div class="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-white/10"></div>
+    <div class="text-xs uppercase tracking-wider text-brand-100 font-semibold mb-2 flex items-center gap-2">
+      <span x-text="done ? 'Interview complete' : 'Question ' + Math.max(1, questionsAsked)"></span>
+      <span x-show="fallback" class="px-2 py-0.5 rounded-full bg-amber-300 text-amber-900 normal-case tracking-normal">offline question bank</span>
+    </div>
+    <p class="text-2xl sm:text-3xl font-semibold leading-snug font-tamil relative" x-text="currentQuestion.text_original || '…'"></p>
+    <p class="text-sm text-brand-100 mt-2 relative" x-show="language==='ta' && currentQuestion.text_english" x-text="currentQuestion.text_english"></p>
+    <button @click="replay()" :disabled="!currentQuestion.text_original" class="mt-4 relative inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-sm font-medium">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span x-text="speaking ? 'Speaking…' : 'Replay'"></span>
+    </button>
+  </section>
+
+  <!-- Chat -->
+  <section x-ref="chat" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-4 mb-3 max-h-[42vh] overflow-y-auto space-y-3 scroll-smooth">
+    <template x-for="t in turns" :key="t.id">
+      <div class="flex" :class="t.role === 'patient' ? 'justify-end' : 'justify-start'">
+        <div class="max-w-[85%] px-4 py-2.5 rounded-2xl"
+          :class="t.role === 'patient' ? 'bg-brand-600 text-white rounded-br-md' : 'bg-slate-100 text-slate-800 rounded-bl-md'">
+          <div class="font-tamil leading-relaxed" x-text="t.text_original"></div>
+          <div class="text-xs mt-1 opacity-75 italic" x-show="t.text_english && t.text_english !== t.text_original" x-text="t.text_english"></div>
+          <div class="text-[10px] mt-1 opacity-60 flex gap-2" x-show="t.role==='patient'">
+            <span x-text="t.input_mode === 'voice' ? '🎙 voice' : '⌨ typed'"></span>
+            <span x-show="t.stt_confidence !== null && t.stt_confidence !== undefined" x-text="'STT ' + Math.round((t.stt_confidence||0)*100) + '%'"></span>
+          </div>
+        </div>
+      </div>
+    </template>
+    <template x-if="pendingText">
+      <div class="flex justify-end"><div class="max-w-[85%] px-4 py-2.5 rounded-2xl bg-brand-100 text-brand-900 rounded-br-md font-tamil" x-text="pendingText"></div></div>
+    </template>
+    <div x-show="phase==='thinking' || phase==='transcribing'" class="flex justify-start">
+      <div class="px-4 py-3 rounded-2xl bg-slate-100 rounded-bl-md flex items-center gap-2 text-sm text-slate-500">
+        <span class="flex gap-1"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+        <span x-text="phase==='transcribing' ? 'Listening to your answer…' : 'Gemma is thinking…'"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Error -->
+  <div x-show="error" x-transition class="mb-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm flex gap-2" style="display:none">
+    <span>⚠️</span><span class="flex-1" x-text="error"></span><button @click="error=''" class="text-amber-700">✕</button>
+  </div>
+
+  <!-- Controls -->
+  <section x-show="!done" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+    <div class="flex flex-col items-center">
+      <button
+        @pointerdown.prevent="micDown()" @pointerup.prevent="micUp()" @pointerleave="micLeave()" @contextmenu.prevent
+        :disabled="busy && phase !== 'recording'"
+        class="mic-btn relative w-24 h-24 sm:w-28 sm:h-28 rounded-full grid place-items-center text-white shadow-xl select-none touch-none transition-transform active:scale-95 disabled:opacity-50"
+        :class="phase==='recording' ? 'bg-rose-500 recording' : 'bg-brand-600 hover:bg-brand-700'"
+        :style="phase==='recording' ? `--level:${level}` : ''" aria-label="Hold to talk">
+        <span class="ring-pulse" x-show="phase==='recording'"></span>
+        <svg x-show="phase!=='recording'" class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>
+        <svg x-show="phase==='recording'" class="w-9 h-9" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
+      <div class="mt-3 text-sm font-medium text-slate-600 text-center min-h-[20px]">
+        <span x-show="phase==='idle'"><span class="font-tamil" x-show="language==='ta'">அழுத்திப் பிடிச்சு பேசுங்க · </span>Hold to talk (or tap to start/stop)</span>
+        <span x-show="phase==='recording'" class="text-rose-600">Recording… <span x-text="recSeconds + 's'"></span> · release to send</span>
+        <span x-show="phase==='transcribing'" x-text="sttMode==='browser' ? 'Transcribing (Google speech)…' : 'Transcribing (ElevenLabs Scribe)…'"></span>
+        <span x-show="phase==='thinking'">Translating &amp; choosing next question (Gemma)…</span>
+        <span x-show="phase==='speaking'">Speaking question…</span>
+      </div>
+    </div>
+
+    <div class="mt-4 border-t border-slate-100 pt-4">
+      <button @click="showType = !showType" class="text-sm text-brand-700 font-medium" x-text="showType ? 'Hide typing' : '⌨ Type instead'"></button>
+      <form x-show="showType" @submit.prevent="sendTyped()" class="mt-2 flex gap-2" style="display:none">
+        <input x-model="typed" :placeholder="language==='ta' ? 'உங்க பதில்…' : 'Your answer…'" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 font-tamil focus:ring-2 focus:ring-brand-100 outline-none">
+        <button :disabled="busy || !typed.trim()" class="px-4 py-3 rounded-xl bg-brand-600 text-white font-semibold disabled:opacity-50">Send</button>
+      </form>
+    </div>
+
+    <div class="mt-4 flex justify-end">
+      <button @click="finish()" :disabled="busy" class="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 disabled:opacity-50">Finish interview</button>
+    </div>
+  </section>
+
+  <!-- Done -->
+  <section x-show="done" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 text-center" style="display:none">
+    <div class="w-14 h-14 mx-auto rounded-full grid place-items-center" :class="urgent ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'">
+      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+    </div>
+    <h2 class="mt-3 font-bold text-lg text-slate-900">Interview finished</h2>
+    <p class="text-sm text-slate-500 mt-1" x-show="status==='interview_complete'">
+      <span class="inline-flex gap-1 align-middle mr-1"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+      Gemma is extracting the OP history record (LangExtract + grounding check)…
+    </p>
+    <p class="text-sm text-slate-500 mt-1" x-show="status!=='interview_complete'">Record is ready for doctor review.</p>
+    <div class="mt-4 flex flex-col sm:flex-row gap-2 justify-center">
+      <a :href="`/encounters/${encounterId}/record`" class="px-5 py-3 rounded-xl bg-brand-600 text-white font-semibold">Open OP record</a>
+      <a :href="`/encounters/${encounterId}/pipeline`" class="px-5 py-3 rounded-xl border border-slate-200 font-semibold text-slate-700">View AI pipeline</a>
+    </div>
+  </section>
+
+  <!-- Start overlay (unlocks audio autoplay) -->
+  <div x-show="needsStart" class="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm grid place-items-center p-4" style="display:none">
+    <div class="bg-white rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-brand-50 text-brand-600 grid place-items-center">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>
+      </div>
+      <h2 class="mt-4 font-bold text-lg">Start voice interview</h2>
+      <p class="mt-1 text-sm text-slate-500 font-tamil">டாக்டர் பார்க்கறதுக்கு முன்னாடி சில கேள்விகள்.</p>
+      <p class="mt-2 text-xs text-slate-400">Speech is processed by ElevenLabs; reasoning runs on {{ settings.model_label }}. This assistant does not diagnose or give treatment advice.</p>
+      <button @click="begin()" class="mt-5 w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold" x-text="loading ? 'Preparing…' : 'Begin'" :disabled="loading"></button>
+    </div>
+  </div>
+
+  <audio x-ref="player" preload="auto" @ended="onAudioEnded()"></audio>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/js/interview.js"></script>{% endblock %}

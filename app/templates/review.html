@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, avatar %}
+{% block title %}Review queue{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-slate-900 tracking-tight">Review queue</h1>
+<p class="text-sm text-slate-500 mb-4">Encounters awaiting doctor review · urgent first</p>
+<div class="space-y-3">
+  {% for it in items %}
+  {% set e, p = it.e, it.p %}
+  <a href="/encounters/{{ e.id }}/record" class="block bg-white rounded-2xl border shadow-sm p-4 hover:shadow-md transition-shadow {{ 'border-rose-300 ring-1 ring-rose-200' if e.urgent else 'border-slate-200' }}">
+    <div class="flex items-center gap-3">
+      {{ avatar(p) }}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="font-semibold text-slate-900">{{ p.name }}</span>
+          <span class="text-xs text-slate-400">{{ p.age }}{{ p.sex }} · {{ p.pid }}</span>
+          {{ status_badge(e.status, e.urgent) }}
+        </div>
+        {% set cc = (e.get_extracted().get('chief_complaint') or {}).get('value') %}
+        <div class="text-sm text-slate-600 mt-0.5 truncate">{{ cc or 'Chief complaint pending' }}</div>
+        {% if e.urgent %}<div class="text-xs text-rose-700 font-medium mt-0.5">⚠ {{ e.red_flag_reason }}</div>{% endif %}
+      </div>
+      <div class="hidden sm:flex gap-2 text-center">
+        <div class="px-3 py-1.5 rounded-xl bg-teal-50"><div class="text-lg font-bold text-teal-700 leading-none">{{ it.filled }}</div><div class="text-[10px] text-teal-700 mt-0.5">filled</div></div>
+        <div class="px-3 py-1.5 rounded-xl {{ 'bg-amber-50' if it.unclear else 'bg-slate-50' }}"><div class="text-lg font-bold leading-none {{ 'text-amber-700' if it.unclear else 'text-slate-400' }}">{{ it.unclear }}</div><div class="text-[10px] mt-0.5 {{ 'text-amber-700' if it.unclear else 'text-slate-400' }}">flagged</div></div>
+        <div class="px-3 py-1.5 rounded-xl bg-slate-50"><div class="text-lg font-bold text-slate-500 leading-none">{{ it.missing }}</div><div class="text-[10px] text-slate-500 mt-0.5">missing</div></div>
+      </div>
+    </div>
+    <div class="sm:hidden mt-2 flex gap-3 text-xs"><span class="text-teal-700">{{ it.filled }} filled</span><span class="text-amber-700">{{ it.unclear }} flagged</span><span class="text-slate-500">{{ it.missing }} missing</span></div>
+  </a>
+  {% else %}
+  <div class="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-500 text-sm">Nothing to review. 🎉</div>
+  {% endfor %}
+</div>
+{% endblock %}

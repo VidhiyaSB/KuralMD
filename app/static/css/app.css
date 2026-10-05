@@ -1,0 +1,23 @@
+[x-cloak] { display: none !important; }
+.font-tamil { font-family: 'Noto Sans Tamil', 'Inter', sans-serif; }
+
+/* typing dots */
+.dot { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; opacity: .5; display: inline-block; animation: blink 1.2s infinite ease-in-out; }
+.dot:nth-child(2) { animation-delay: .15s; }
+.dot:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .2; transform: translateY(0); } 40% { opacity: .9; transform: translateY(-3px); } }
+
+/* mic button recording animation */
+.mic-btn .ring-pulse { position: absolute; inset: 0; border-radius: 9999px; pointer-events: none; }
+.mic-btn.recording { box-shadow: 0 0 0 calc(6px + var(--level, 0) * 26px) rgba(244, 63, 94, .18), 0 0 0 calc(12px + var(--level, 0) * 44px) rgba(244, 63, 94, .08); transition: box-shadow 80ms linear; }
+.mic-btn.recording .ring-pulse { animation: ring 1.6s infinite; border: 3px solid rgba(244, 63, 94, .55); }
+@keyframes ring { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
+
+.animate-pulse-slow { animation: pulseSlow 2.4s infinite; }
+@keyframes pulseSlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, .45); } 50% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); } }
+
+/* timeline line */
+.timeline-item:not(:last-child)::before { content: ''; position: absolute; left: 19px; top: 44px; bottom: -8px; width: 2px; background: #e2e8f0; }
+
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }

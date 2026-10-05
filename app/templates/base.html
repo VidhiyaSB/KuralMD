@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}KuralMD{% endblock %} · KuralMD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'Noto Sans Tamil', 'system-ui', 'sans-serif'], tamil: ['Noto Sans Tamil', 'Inter', 'sans-serif'] },
+          colors: { brand: { 50:'#effcfb',100:'#d6f5f3',200:'#b0ebe8',300:'#7bdad7',400:'#40c0bf',500:'#22a3a4',600:'#1b8388',700:'#1b6a6f',800:'#1c565b',900:'#1b484d' } },
+        },
+      },
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen">
+  <!-- Top bar -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center gap-3">
+      <a href="/patients" class="flex items-center gap-2 shrink-0">
+        <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-sky-600 grid place-items-center text-white font-bold shadow-sm">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>
+        </span>
+        <span class="leading-tight">
+          <span class="block font-bold text-slate-900 tracking-tight">KuralMD</span>
+          <span class="block text-[11px] text-slate-500 font-tamil -mt-0.5">குரல் · voice history</span>
+        </span>
+      </a>
+      <form action="/patients" method="get" class="flex-1 max-w-md ml-2 hidden sm:block">
+        <label class="relative block">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input name="q" placeholder="Search patient name or PID" class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-100 border border-transparent focus:bg-white focus:border-brand-300 focus:ring-2 focus:ring-brand-100 outline-none text-sm">
+        </label>
+      </form>
+      <div class="ml-auto flex items-center gap-1">
+        <a href="/patients" class="sm:hidden p-2 rounded-lg hover:bg-slate-100" aria-label="Search">
+          <svg class="w-5 h-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </a>
+        <a href="/review" class="relative p-2 rounded-lg hover:bg-slate-100" aria-label="Notifications">
+          <svg class="w-5 h-5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          {% if review_count %}<span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full {{ 'bg-rose-500' if urgent_count else 'bg-brand-600' }} text-white text-[10px] font-bold grid place-items-center">{{ review_count }}</span>{% endif %}
+        </a>
+        <div x-data="{open:false}" class="relative">
+          <button @click="open=!open" class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100">
+            <span class="w-8 h-8 rounded-full bg-brand-100 text-brand-700 grid place-items-center text-xs font-bold">DR</span>
+          </button>
+          <div x-show="open" @click.outside="open=false" x-transition class="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 p-2 text-sm" style="display:none">
+            <div class="px-3 py-2 border-b border-slate-100 mb-1">
+              <div class="font-semibold">Divya R</div>
+              <div class="text-xs text-slate-500">Final-year MBBS · Community Medicine</div>
+            </div>
+            <a href="/patients/new" class="block px-3 py-2 rounded-lg hover:bg-slate-50">+ Register patient</a>
+            <a href="/dashboard" class="block px-3 py-2 rounded-lg hover:bg-slate-50">Dashboard</a>
+            <a href="/api/health" target="_blank" class="block px-3 py-2 rounded-lg hover:bg-slate-50">System health</a>
+            <div class="px-3 pt-2 mt-1 border-t border-slate-100 text-[11px] text-slate-500 leading-snug">
+              {{ settings.model_label }} (open model, via Ollama) does all reasoning. Voice audio is sent to ElevenLabs{% if settings.langfuse_enabled %}; masked traces go to Langfuse{% endif %}. Synthetic data only.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  {% set nav_items = [
+    ('patients', '/patients', 'Patients', 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'),
+    ('interviews', '/interviews', 'Interviews', 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM19 11a7 7 0 0 1-14 0M12 18v3'),
+    ('review', '/review', 'Review', 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'),
+    ('pipeline', '/pipeline', 'Pipeline', 'M3 12h4l3 8 4-16 3 8h4'),
+    ('dashboard', '/dashboard', 'Dashboard', 'M3 3v18h18M7 15l4-4 3 3 5-6'),
+  ] %}
+
+  <div class="max-w-7xl mx-auto flex">
+    <!-- Left nav (desktop) -->
+    <nav class="hidden md:block w-56 shrink-0 py-6 pr-4 pl-4">
+      <div class="sticky top-24 space-y-1">
+        {% for key, href, label, icon in nav_items %}
+        <a href="{{ href }}" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium {{ 'bg-brand-50 text-brand-700' if nav == key else 'text-slate-600 hover:bg-white hover:text-slate-900' }}">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ icon }}"/></svg>
+          {{ label }}
+          {% if key == 'review' and review_count %}<span class="ml-auto text-[11px] px-2 py-0.5 rounded-full {{ 'bg-rose-100 text-rose-700' if urgent_count else 'bg-brand-100 text-brand-700' }}">{{ review_count }}</span>{% endif %}
+        </a>
+        {% endfor %}
+        <div class="mt-6 p-3 rounded-xl bg-white border border-slate-200 text-[11px] text-slate-500 leading-relaxed">
+          <div class="font-semibold text-slate-700 mb-1">AI scope</div>
+          History-taking &amp; record extraction only. Never diagnoses, never suggests treatment, never fills examination.
+        </div>
+      </div>
+    </nav>
+
+    <main class="flex-1 min-w-0 px-4 md:pl-2 py-4 md:py-6 pb-28 md:pb-10">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
+    <div class="grid grid-cols-5">
+      {% for key, href, label, icon in nav_items %}
+      <a href="{{ href }}" class="relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium {{ 'text-brand-700' if nav == key else 'text-slate-500' }}">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ icon }}"/></svg>
+        {{ label }}
+        {% if key == 'review' and review_count %}<span class="absolute top-1 right-1/4 w-2 h-2 rounded-full {{ 'bg-rose-500' if urgent_count else 'bg-brand-600' }}"></span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  </nav>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, avatar, lang_chip %}
+{% block title %}Interviews{% endblock %}
+{% block content %}
+<div x-data="{ walkin:false }">
+<div class="flex items-end justify-between gap-3 mb-4">
+  <div>
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Interviews</h1>
+    <p class="text-sm text-slate-500">Voice history sessions</p>
+  </div>
+  <button type="button" @click="walkin=true" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold shadow-sm">
+    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></svg>Quick walk-in
+  </button>
+</div>
+{% include "_walkin.html" %}
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+  {% for e, p in rows %}
+  <div class="p-4 flex items-center gap-3">
+    {{ avatar(p) }}
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-slate-900">{{ p.name }}</span>{{ lang_chip(e.language) }}{{ status_badge(e.status, e.urgent) }}</div>
+      <div class="text-xs text-slate-500 mt-0.5">OP #{{ e.id }} · {{ e.created_at|dt }} · {{ e.questions_asked }} questions</div>
+    </div>
+    {% if e.status == 'interview_in_progress' %}
+    <a href="/interview/{{ e.id }}" class="px-3 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold">{{ 'Continue' if e.questions_asked else 'Start' }}</a>
+    {% else %}
+    <a href="/encounters/{{ e.id }}/record" class="px-3 py-2 rounded-xl border border-slate-200 text-sm font-medium text-brand-700">Record</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="p-10 text-center text-sm text-slate-500">No interviews yet. Open a patient and tap “Start voice interview”.</div>
+  {% endfor %}
+</div>
+</div>
+{% endblock %}

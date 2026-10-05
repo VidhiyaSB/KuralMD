@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block title %}Pipeline · OP #{{ encounter.id }}{% endblock %}
+{% block content %}
+<a href="/encounters/{{ encounter.id }}/record" class="text-sm text-slate-500 hover:text-slate-800">← OP record</a>
+<div class="mt-2 flex flex-col sm:flex-row sm:items-end gap-3 mb-4">
+  <div class="flex-1">
+    <h1 class="text-2xl font-bold text-slate-900 tracking-tight">AI pipeline</h1>
+    <p class="text-sm text-slate-500">{{ patient.name }} · OP #{{ encounter.id }} · {{ events|length }} steps {{ status_badge(encounter.status, encounter.urgent) }}</p>
+  </div>
+  {% if langfuse_url %}
+  <a href="{{ langfuse_url }}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800">Open trace in Langfuse ↗</a>
+  {% else %}
+  <span class="text-xs text-slate-500 px-3 py-2 rounded-xl bg-slate-100">Langfuse not configured — local timeline only</span>
+  {% endif %}
+</div>
+
+<!-- Step summary -->
+<div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mb-5">
+  {% for step, meta in STEP_META.items() %}
+  {% set t = totals.get(step) %}
+  <div class="bg-white rounded-xl border border-slate-200 p-3 {{ 'opacity-50' if not t }}">
+    <div class="text-lg">{{ meta[1] }}</div>
+    <div class="text-xs font-semibold text-slate-700 mt-1">{{ meta[0] }}</div>
+    <div class="text-[11px] text-slate-500">{% if t %}{{ t.count }}× · avg {{ (t.ms / t.count)|round|int }} ms{% else %}—{% endif %}</div>
+    {% if t and (t.warn or t.error) %}<div class="text-[11px] mt-0.5">{% if t.warn %}<span class="text-amber-600">{{ t.warn }} warn</span> {% endif %}{% if t.error %}<span class="text-rose-600">{{ t.error }} error</span>{% endif %}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Timeline -->
+<ol class="space-y-2">
+  {% for ev in events %}
+  {% set meta = STEP_META.get(ev.step, (ev.step, '•')) %}
+  {% set color = {'ok': 'bg-emerald-500', 'warn': 'bg-amber-500', 'error': 'bg-rose-500'}.get(ev.status, 'bg-slate-400') %}
+  <li class="timeline-item relative pl-14">
+    <span class="absolute left-0 top-2 w-10 h-10 rounded-xl bg-white border border-slate-200 grid place-items-center text-lg shadow-sm">{{ meta[1] }}
+      <span class="absolute -right-1 -top-1 w-3 h-3 rounded-full ring-2 ring-white {{ color }}"></span></span>
+    <details class="bg-white rounded-2xl border shadow-sm {{ 'border-amber-200' if ev.status == 'warn' else 'border-rose-200' if ev.status == 'error' else 'border-slate-200' }}">
+      <summary class="p-3 sm:p-4 cursor-pointer">
+        <div class="flex items-center gap-2 flex-wrap text-sm">
+          <span class="font-semibold text-slate-900">{{ meta[0] }}</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {{ {'ok':'bg-emerald-50 text-emerald-700','warn':'bg-amber-50 text-amber-700','error':'bg-rose-50 text-rose-700'}.get(ev.status) }}">{{ ev.status }}</span>
+          <span class="text-xs text-slate-500 font-mono">{{ ev.latency_ms }} ms</span>
+          {% if ev.model %}<span class="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono">{{ ev.model | model_label }}</span>{% endif %}
+          <span class="ml-auto text-[11px] text-slate-400">{{ ev.created_at.strftime('%H:%M:%S') }}</span>
+        </div>
+        <div class="mt-1.5 text-sm text-slate-600 grid sm:grid-cols-[1fr_auto_1fr] gap-x-2 gap-y-0.5 items-start">
+          <span class="truncate font-tamil text-slate-500" title="{{ ev.input_summary }}">{{ ev.input_summary or '—' }}</span>
+          <span class="text-slate-300 hidden sm:inline">→</span>
+          <span class="truncate font-tamil text-slate-800" title="{{ ev.output_summary }}">{{ ev.output_summary or '—' }}</span>
+        </div>
+      </summary>
+      <div class="px-4 pb-4 text-xs space-y-2 border-t border-slate-100 pt-3">
+        <div><div class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Input</div><div class="font-tamil text-slate-700 whitespace-pre-wrap break-words">{{ ev.input_summary }}</div></div>
+        <div><div class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Output</div><div class="font-tamil text-slate-800 whitespace-pre-wrap break-words">{{ ev.output_summary }}</div></div>
+        {% set d = ev.get_detail() %}
+        {% if d %}
+          {% if ev.step == 'guardrail' and d.checks is defined %}
+          <div class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Grounding checks</div>
+          <table class="w-full text-left">
+            <thead class="text-slate-400"><tr><th class="py-1 pr-2">Field</th><th class="pr-2">Quote</th><th class="pr-2">Score</th><th></th></tr></thead>
+            <tbody>
+            {% for c in d.checks %}
+            <tr class="border-t border-slate-100"><td class="py-1 pr-2 font-mono">{{ c.field }}</td><td class="pr-2 italic text-slate-600">“{{ c.quote }}”</td><td class="pr-2 font-mono">{{ c.score }}</td><td>{{ '✅' if c.grounded else '⚠️' }}</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div><div class="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Detail</div>
+          <pre class="mt-1 p-2 rounded-lg bg-slate-50 overflow-x-auto text-[11px] font-mono text-slate-700 max-h-72">{{ d | tojson(indent=2) }}</pre></div>
+          {% endif %}
+        {% endif %}
+        {% if ev.langfuse_observation_id and langfuse_url %}
+        <a href="{{ langfuse_url }}?observation={{ ev.langfuse_observation_id }}" target="_blank" class="inline-block text-brand-700 font-medium">Open in Langfuse ↗</a>
+        {% endif %}
+      </div>
+    </details>
+  </li>
+  {% else %}
+  <li class="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">No AI steps recorded yet.</li>
+  {% endfor %}
+</ol>
+{% endblock %}
