@@ -11,8 +11,8 @@ ROOT_DIR = BASE_DIR.parent
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 
-    ollama_url: str = "http://localhost:11434"  # or https://ollama.com for Ollama Cloud direct
-    ollama_api_key: str = ""  # only for https://ollama.com (Ollama Cloud) or a proxied Ollama
+    ollama_url: str = "http://localhost:11434"  # local Ollama
+    ollama_api_key: str = ""  # optional: only if OLLAMA_URL points at an Ollama server that requires auth
     model_name: str = "gemma4:e4b"
     fallback_model_name: str = "gemma4:e2b"
     llm_timeout_s: float = 120.0
@@ -43,13 +43,14 @@ class Settings(BaseSettings):
         return self.ollama_url.rstrip("/") + "/v1"
 
     @property
-    def is_cloud_model(self) -> bool:
-        return "cloud" in self.model_name or "ollama.com" in self.ollama_url
+    def is_remote_ollama(self) -> bool:
+        host = self.ollama_url.split("//", 1)[-1]
+        return not host.startswith(("localhost", "127.0.0.1", "0.0.0.0")) or self.model_name.endswith("-cloud")
 
     @property
     def model_label(self) -> str:
         """Model name shown in the UI. Says 'local' only when it really runs locally."""
-        return "Gemma 4 · local" if not self.is_cloud_model else "Gemma 4"
+        return "Gemma 4 · local" if not self.is_remote_ollama else "Gemma 4"
 
     @property
     def ollama_headers(self) -> dict[str, str]:

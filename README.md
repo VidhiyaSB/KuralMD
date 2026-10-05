@@ -46,9 +46,8 @@ Open http://127.0.0.1:8000 in Chrome. Fictional patients are seeded on first sta
 |---|---|
 | Local (default) | `OLLAMA_URL=http://localhost:11434`, `MODEL_NAME=gemma4:e4b` |
 | Faster local | `MODEL_NAME=gemma4:e2b` (Tamil phrasing is weaker) |
-| Ollama-hosted Gemma 4 | `OLLAMA_URL=https://ollama.com`, `OLLAMA_API_KEY=...`, `MODEL_NAME=gemma4:31b` |
 
-On a CPU-only laptop, local e4b takes roughly 45 to 55 s per question. Hosted Gemma 4 takes 1 to 5 s.
+Everything runs against your local Ollama. On a CPU-only laptop, e4b takes roughly 45 to 55 s per question; a GPU makes it much faster. `OLLAMA_URL` can also point at another Ollama server on your network (set `OLLAMA_API_KEY` if that server requires auth).
 
 ### Other switches
 - `EXTRACTOR=json` uses Gemma JSON with rapidfuzz grounding instead of LangExtract. LangExtract automatically falls back to this if it returns nothing.

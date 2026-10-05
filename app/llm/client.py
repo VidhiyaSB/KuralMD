@@ -69,8 +69,8 @@ def ollama_status() -> dict[str, Any]:
         r = httpx.get(f"{s.ollama_url.rstrip('/')}/api/tags", headers=s.ollama_headers, timeout=5)
         r.raise_for_status()
         names = [m.get("name", "") for m in r.json().get("models", [])]
-        present = s.is_cloud_model or any(n.startswith(s.model_name) for n in names)
-        return {"ok": True, "models": names[:20], "model_present": present, "cloud": s.is_cloud_model}
+        present = s.is_remote_ollama or any(n.startswith(s.model_name) for n in names)
+        return {"ok": True, "models": names[:20], "model_present": present}
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "error": str(exc), "models": [], "model_present": False}
 
@@ -89,8 +89,8 @@ def warm_up() -> None:
         from app.llm.prompts import AGENT_FAST_SYSTEM
 
         s = get_settings()
-        if s.is_cloud_model:
-            return  # nothing to load locally
+        if s.is_remote_ollama:
+            return  # nothing to load on this machine
         httpx.post(
             f"{s.ollama_url.rstrip('/')}/api/chat",
             json={
